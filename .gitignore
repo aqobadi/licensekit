@@ -1,0 +1,4 @@
+*.test
+*.test.exe
+/examples/cli/licensekit-cli
+/examples/web/licensekit-web

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>License · {{.Name}}</title>
+<link rel="stylesheet" href="licenseui.css">
+</head>
+<body>
+<main class="lk">
+  <h1>License</h1>
+
+  <section class="lk-card lk-state-{{.S.State}}">
+    <div class="lk-row">
+      <strong>{{if eq .S.State.String "Active"}}Licensed{{else if eq .S.State.String "Expired"}}Expired{{else if eq .S.State.String "NotActivated"}}Not activated{{else}}Needs attention{{end}}</strong>
+      {{if .S.LicenseID}}<span class="lk-muted">License {{.S.LicenseID}}</span>{{end}}
+    </div>
+    <p>{{.S.Message}}</p>
+    {{if .Warn}}<p class="lk-warn">{{if eq .S.DaysLeft 0}}Today is the last day.{{else}}{{.S.DaysLeft}} days left.{{end}} Enter a renewal code to extend it.</p>{{end}}
+  </section>
+
+  {{if .Done}}<p class="lk-ok" role="status">{{.Done}}</p>{{end}}
+  {{if .Error}}<p class="lk-err" role="alert">{{.Error}}</p>{{end}}
+
+  <form method="post" class="lk-card">
+    <label for="lk-code">{{if eq .S.State.String "NotActivated"}}License key{{else}}Renewal code or license key{{end}}</label>
+    <input id="lk-code" name="code" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" required>
+    <p class="lk-muted">Six groups of four characters. Upper or lower case and dashes don't matter. A license key activates {{.Name}} once over the internet; renewal codes work offline.</p>
+    <button name="action" value="enter">{{if eq .S.State.String "NotActivated"}}Activate{{else}}Apply{{end}}</button>
+  </form>
+
+  <form method="post" enctype="multipart/form-data" class="lk-card">
+    <label for="lk-file">License file</label>
+    <input id="lk-file" type="file" name="file" accept=".license,.txt" required>
+    <button name="action" value="file">Open license file</button>
+  </form>
+
+  <details class="lk-card">
+    <summary>No internet connection on this computer?</summary>
+    <form method="post">
+      <p>Enter your license key and save a request file. Send the file to us, then open the license file we send back above. The request file contains no license key and no personal data.</p>
+      <label for="lk-key">License key</label>
+      <input id="lk-key" name="code" autocomplete="off" spellcheck="false" required>
+      <button name="action" value="request">Save request file</button>
+    </form>
+  </details>
+
+  {{if .S.CanDeactivate}}
+  <form method="post" class="lk-card">
+    <strong>Move to another computer</strong>
+    <p class="lk-muted">Deactivating frees your license key so you can activate another computer with it. It needs an internet connection.</p>
+    <button name="action" value="deactivate" class="lk-secondary">Deactivate this computer</button>
+  </form>
+  {{end}}
+
+  <p class="lk-muted">{{.Support}}</p>
+</main>
+</body>
+</html>
