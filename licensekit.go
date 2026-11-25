@@ -187,7 +187,7 @@ func buildTrust(product string) (*protocol.Trust, error) {
 		}
 	}
 	if strings.TrimSpace(build) == "" {
-		return nil, errors.New("this build has no trusted keys; set the Manager's build setting with -ldflags -X github.com/aqobadi/licensekit.build=…")
+		return nil, errors.New("this build has no trusted keys: build with -ldflags \"-X github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD\" (see INTEGRATION.md)")
 	}
 	return protocol.ParseTrust(build)
 }

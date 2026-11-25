@@ -28,8 +28,14 @@ The app needs only the SDK. There is no bundle file to embed, no key to put in c
 3. Wire the build setting into every build, never into code: add
    -X github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD to the existing -ldflags
    in the Makefile, scripts, CI and Dockerfile (as a build argument). LICENSEKIT_BUILD comes from
-   the Manager (Settings → Signing → App build setting); the owner supplies it in the build
+   the Manager (Settings → Signing → LICENSEKIT_BUILD); the owner supplies it in the build
    environment. Do not read trust from runtime environment variables or files.
+   For local runs, make plain `go run`/`go build` work when the developer exports LICENSEKIT_BUILD
+   and GOFLAGS="-ldflags=-X=github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD" (INTEGRATION.md §2,
+   "On your computer"). If the project passes its own -ldflags (Makefile, scripts), append
+   -X github.com/aqobadi/licensekit.build=$(LICENSEKIT_BUILD) there so `make run` reads the variable.
+   Add a git-ignored .env/.envrc example (no real value) and document both lines in the app's README.
+   Automated tests use licensekittest and need no LICENSEKIT_BUILD.
 4. Give administrators the License page. For a web app, mount
    licenseui.Handler(lic, licenseui.Options{Name: "<product name>", Support: "<support text>"})
    under the app's existing administrator authentication with http.StripPrefix. For other apps,

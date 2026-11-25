@@ -14,20 +14,96 @@ go get github.com/aqobadi/licensekit@v0.1.1
 
 The repository is public, so no token or `GOPRIVATE` setting is needed.
 
-## 2. Set the build setting (once, outside the code)
+## 2. Set LICENSEKIT_BUILD (once, in your CI, not in code)
 
-In the Manager, an admin opens **Settings → Signing → App build setting** and copies the value. It holds only public keys and the activation address, so it is safe in CI settings and Dockerfiles. Every build of the app passes it to the linker:
+The License-ZG Manager shows the value under **Settings → Signing → LICENSEKIT_BUILD**. It holds only
+public keys and the activation address, so it isn't secret. The app gets it **when it is built**:
 
 ```sh
-# CI variable or .env for builds:
-LICENSEKIT_BUILD='r1:4435…5d19,r2:9a1f…88e0,url=https://activate.example.com'
-
 go build -ldflags "-X github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD" ./cmd/yourapp
 ```
 
-If the build already uses `-ldflags` (for example for a version), add the `-X` to the same `-ldflags` string. In a Dockerfile, pass it as a build argument. Without the setting, `Open` returns `NotConfigured` and the app shows "This build of the app has no licensing configuration", so a misconfigured build is obvious.
+Where `LICENSEKIT_BUILD` lives depends on what builds your app. Set it **once** there.
 
-Why the build, and not a runtime environment variable or a file: whoever chooses the trusted keys chooses who can make licenses. A customer who could set them would trust their own key and sign their own license. Only the binary you build and ship is out of their reach.
+### GitHub Actions
+
+1. In the app's repository: **Settings → Secrets and variables → Actions → Variables → New repository
+   variable**. Name `LICENSEKIT_BUILD`, value copied from the Manager. (A *variable*, not a secret: it
+   isn't sensitive, and a variable stays readable.)
+2. In the workflow that builds the app:
+
+```yaml
+      - run: go build -ldflags "-X github.com/aqobadi/licensekit.build=${{ vars.LICENSEKIT_BUILD }}" -o app ./cmd/yourapp
+```
+
+If the build already has `-ldflags` (for example a version), add the `-X …` inside the same quotes.
+
+### Docker (any CI, Coolify, Compose)
+
+Pass it as a build argument, never as a runtime `ENV`:
+
+```dockerfile
+FROM golang:1.27 AS build
+ARG LICENSEKIT_BUILD
+WORKDIR /src
+COPY . .
+RUN test -n "$LICENSEKIT_BUILD" && \
+    go build -ldflags "-X github.com/aqobadi/licensekit.build=${LICENSEKIT_BUILD}" -o /out/app ./cmd/yourapp
+```
+
+- **GitHub Actions** building the image: `docker build --build-arg LICENSEKIT_BUILD="${{ vars.LICENSEKIT_BUILD }}" .`
+  (or `build-args: LICENSEKIT_BUILD=${{ vars.LICENSEKIT_BUILD }}` with `docker/build-push-action`).
+- **Coolify:** add the environment variable `LICENSEKIT_BUILD` to the application and tick
+  **Available at Buildtime**; Coolify passes it as a build argument.
+- **Docker Compose:** `build: { args: { LICENSEKIT_BUILD: ${LICENSEKIT_BUILD} } }`, with the value in the
+  build machine's `.env`.
+
+The `test -n` line makes the image build fail if the variable is missing.
+
+### On your computer (local runs and tests)
+
+Set two environment variables in your shell; plain `go run` and `go build` then pick the value up through
+Go's own `GOFLAGS`:
+
+```sh
+export LICENSEKIT_BUILD='r1:…,r2:…,url=https://activate.example.com'   # value from the Manager
+export GOFLAGS="-ldflags=-X=github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD"
+
+go run ./cmd/yourapp        # licensing is configured
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:LICENSEKIT_BUILD = 'r1:…,r2:…,url=https://activate.example.com'
+$env:GOFLAGS = "-ldflags=-X=github.com/aqobadi/licensekit.build=$env:LICENSEKIT_BUILD"
+```
+
+Notes:
+
+- If the project's own command passes `-ldflags` (a Makefile, a script, `go run -ldflags …`), that
+  replaces the one in `GOFLAGS`. Add the `-X` there instead, for example in a Makefile:
+  `LDFLAGS += -X github.com/aqobadi/licensekit.build=$(LICENSEKIT_BUILD)`; `make` reads the environment.
+- Keep the two lines in a git-ignored `.env`/`.envrc` file or your shell profile, not in the repository.
+  `go env -w GOFLAGS=…` also works, but applies to every Go project on the machine.
+- **Testing against a local Manager:** run it (`license-zg serve --local DIR`, or `make dev` in the
+  Manager's repository), create its signing identity, and copy *its* `LICENSEKIT_BUILD`
+  (`url=http://127.0.0.1:47820`). Licenses from your production Manager don't work in such a build, and
+  the other way round. That is intended.
+- **Automated tests** need none of this: `licensekittest` gives each test its own keys and server (§6).
+- Setting `LICENSEKIT_BUILD` alone, without `GOFLAGS` or `-ldflags`, changes nothing: the app never reads
+  it at run time (see below).
+
+### Checking it
+
+A build without the value still runs, but `Open` returns `NotConfigured` ("This build of the app has no
+licensing configuration"), so a missing variable is obvious on the first start.
+
+### Why at build time
+
+Whoever chooses the trusted keys chooses who can make licenses. If an app read `LICENSEKIT_BUILD` when it
+**starts**, anyone running the app could set it to their own keys and sign their own licenses. Baked in
+at build time, it can only be changed by rebuilding or patching the binary.
 
 ## 3. Open the license once
 

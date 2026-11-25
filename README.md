@@ -37,8 +37,14 @@ if lic.Status().State != licensekit.Active { /* pause licensed work */ }
 if lic.Has("export") { /* a separately sold feature */ }
 ```
 
-3. Build with the **build setting** from the Manager (**Settings → Signing → App build setting**),
-   once, in your build configuration (CI variables, Makefile or Dockerfile), never in code:
+3. Set `LICENSEKIT_BUILD` once in your CI (value from the Manager: **Settings → Signing**), never in code.
+   GitHub Actions, Docker and Coolify examples: [INTEGRATION.md §2](INTEGRATION.md#2-set-licensekit_build-once-in-your-ci-not-in-code).
+   To run the app on your computer, export it plus `GOFLAGS` and use plain `go run`:
+
+   ```sh
+   export LICENSEKIT_BUILD='r1:…,url=…'
+   export GOFLAGS="-ldflags=-X=github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD"
+   ```
 
 ```sh
 go build -ldflags "-X github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD" ./...

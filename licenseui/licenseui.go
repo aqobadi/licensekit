@@ -55,7 +55,7 @@ func Handler(lic *licensekit.License, opts Options) http.Handler {
 		opts.Name = "this app"
 	}
 	if opts.Support == "" {
-		opts.Support = "To get a license key or a renewal code, contact us."
+		opts.Support = "Need a license key or renewal code? Contact us."
 	}
 	h := &handler{lic: lic, opts: opts}
 	mux := http.NewServeMux()

@@ -5,6 +5,10 @@ LicenseKit follows semantic versioning; install a release with
 
 ## Unreleased
 
+- INTEGRATION.md §2 "On your computer": run apps locally by exporting `LICENSEKIT_BUILD` and `GOFLAGS`; the agent prompt covers it too.
+- INTEGRATION.md §2: where to set `LICENSEKIT_BUILD` in GitHub Actions, Docker, Coolify and Compose.
+- The "not configured" error names `LICENSEKIT_BUILD`; shorter texts on the License page.
+
 ## v0.1.1 — 2026-11-25
 
 First public release. (v0.1.0 was an internal version under an older module path; it isn't available here.)
