@@ -5,6 +5,8 @@ LicenseKit follows semantic versioning; install a release with
 
 ## Unreleased
 
+## v0.1.2 — 2026-11-25
+
 - `Open("", opts)` gets its product identity from `LICENSEKIT_BUILD`. Explicit slugs and legacy build values remain supported.
 - INTEGRATION.md §2 "On your computer": run apps locally by exporting `LICENSEKIT_BUILD` and `GOFLAGS`; the agent prompt covers it too.
 - INTEGRATION.md §2: where to set `LICENSEKIT_BUILD` in GitHub Actions, Docker, Coolify and Compose.
