@@ -6,7 +6,7 @@
 //	licensekit-cli request KEY FILE     save a request file for a computer without internet
 //	licensekit-cli deactivate           give the license back so another computer can use the key
 //
-// Build it with the build setting from the Manager (Settings → Signing):
+// Build it with the build setting from the Manager product page:
 //
 //	go build -ldflags "-X github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD" .
 package main
@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	lic, err := licensekit.Open("example-app", licensekit.Options{StateDir: os.Getenv("EXAMPLE_STATE_DIR"), DeviceID: os.Getenv("EXAMPLE_DEVICE_ID")})
+	lic, err := licensekit.Open("", licensekit.Options{StateDir: os.Getenv("EXAMPLE_STATE_DIR"), DeviceID: os.Getenv("EXAMPLE_DEVICE_ID")})
 	if err != nil {
 		fail(err)
 	}

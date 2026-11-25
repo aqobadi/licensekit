@@ -6,13 +6,14 @@ standard library and the RFC 8032 section 6 reference Ed25519 code.
 
   python3 -I spec/verify.py vectors   reproduce and check the spec section 13 vectors
   python3 -I spec/verify.py check     read JSON lines from stdin and verify each:
-      {"trust": str, "product": slug, "fingerprint": hex, "license": hex,
+      {"trust": str, "product": optional_slug, "fingerprint": hex, "license": hex,
        "renewal": code, "expiry": n, "entitlements": [str]}
 """
 import base64
 import binascii
 import hashlib
 import json
+import re
 import sys
 
 # ---- RFC 8032 section 6 reference Ed25519 (verbatim logic) ----
@@ -224,17 +225,23 @@ def parse_code(text):
 # ---- Spec section 2: trust ----
 def parse_trust(text):
     roots, distrusted = {}, set()
+    product = ""
     for item in [i.strip() for i in text.split(",") if i.strip()]:
         if item.startswith("url="):
             continue
-        if item.startswith("-s"):
+        if item.startswith("product="):
+            slug = item[len("product="):]
+            if product or not re.fullmatch(r"[a-z][a-z0-9-]{1,38}[a-z0-9]", slug):
+                raise ValueError("invalid or repeated product")
+            product = slug
+        elif item.startswith("-s"):
             distrusted.add(int(item[2:]))
         elif item.startswith("r"):
             num, key = item[1:].split(":")
             roots[int(num)] = bytes.fromhex(key)
         else:
             raise ValueError("trust item " + item)
-    return roots, distrusted
+    return roots, distrusted, product
 
 
 # ---- Spec section 6: certificates and licenses ----
@@ -374,6 +381,7 @@ V = {
                "6f72634dfb6ac1287d981ff72a2e8ec700372981903371fe92b3f78bd112900348b270a9816b0004e5da238f1f079ad0468"
                "5a301",
     "trust": "r1:951a9e4c7e3defb28c5ee9033f60866b8ab55e7a7656917b626db610551e2ff5",
+    "product_build": "r1:951a9e4c7e3defb28c5ee9033f60866b8ab55e7a7656917b626db610551e2ff5,product=example-app",
 }
 
 
@@ -402,8 +410,9 @@ def check_vectors():
     assert renewal_code(step, chain_value(chain_seed, pid, fp, lid, n, step)) == V["renewal"]
     assert make_request(pid, fp, 1, device, key_hash(secret), bytes(32), 1795000000).hex() == V["request"]
     # The device side, from the documented bytes alone.
-    roots, distrusted = parse_trust(V["trust"])
-    got = verify_license(roots, distrusted, bytes.fromhex(V["license"]), pid, fp)
+    roots, distrusted, slug = parse_trust(V["product_build"])
+    assert slug == "example-app" and parse_trust(V["trust"]) == (roots, distrusted, "")
+    got = verify_license(roots, distrusted, bytes.fromhex(V["license"]), product_id(slug), fp)
     assert got["entitlements"] == ["export", "sync"] and got["expiry"] == 2883
     kind, step, value = parse_code(V["renewal"].lower().replace("-", " "))
     assert kind == "renewal" and renewed_expiry(got, step, value) == 2883 + 365
@@ -422,9 +431,12 @@ def check_stream():
     n = 0
     for line in sys.stdin:
         c = json.loads(line)
-        roots, distrusted = parse_trust(c["trust"])
+        roots, distrusted, built_product = parse_trust(c["trust"])
+        product = c.get("product") or built_product
+        if not product or (built_product and product != built_product):
+            raise ValueError("product does not match the build setting")
         fp = bytes.fromhex(c["fingerprint"])
-        f = verify_license(roots, distrusted, bytes.fromhex(c["license"]), product_id(c["product"]), fp)
+        f = verify_license(roots, distrusted, bytes.fromhex(c["license"]), product_id(product), fp)
         kind, step, value = parse_code(c["renewal"])
         assert kind == "renewal" and renewed_expiry(f, step, value) == c["expiry"], line
         assert f["entitlements"] == c["entitlements"], line

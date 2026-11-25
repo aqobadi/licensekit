@@ -41,10 +41,11 @@ type Issuer struct {
 	Product string
 	Now     func() time.Time // defaults to time.Now
 
-	productID [16]byte
-	signing   ed25519.PrivateKey
-	cert      *protocol.Cert
-	trust     *protocol.Trust
+	productID   [16]byte
+	openProduct string
+	signing     ed25519.PrivateKey
+	cert        *protocol.Cert
+	trust       *protocol.Trust
 
 	mu     sync.Mutex
 	keys   map[[32]byte]*sold
@@ -66,13 +67,17 @@ type seat struct {
 	base, n     uint16
 }
 
-// New returns an Issuer and makes licensekit.Open trust it for product
-// until the test ends. Tests that use the same product must not run in
-// parallel.
+// New returns an Issuer and makes licensekit.Open trust it until the test
+// ends. Pass an empty product to test apps that get their identity from the
+// build. Tests that use the same product must not run in parallel.
 func New(t testing.TB, product string) *Issuer {
 	t.Helper()
 	if !testing.Testing() {
 		panic("licensekittest is only for tests")
+	}
+	registration := product
+	if product == "" {
+		product = "example-app"
 	}
 	pid, err := protocol.ProductID(product)
 	if err != nil {
@@ -80,21 +85,21 @@ func New(t testing.TB, product string) *Issuer {
 	}
 	_, root, _ := ed25519.GenerateKey(rand.Reader)
 	_, signing, _ := ed25519.GenerateKey(rand.Reader)
-	i := &Issuer{Product: product, Now: time.Now, productID: pid, signing: signing,
+	i := &Issuer{Product: product, Now: time.Now, productID: pid, openProduct: registration, signing: signing,
 		keys: map[[32]byte]*sold{}, nonces: map[[32]byte]bool{}, nextID: 0x10000}
 	i.cert = &protocol.Cert{KeyNumber: 1, PublicKey: signing.Public().(ed25519.PublicKey), CreatedDay: 1}
 	if err := i.cert.Sign(1, root); err != nil {
 		t.Fatal(err)
 	}
 	i.trust = &protocol.Trust{Roots: map[uint8]ed25519.PublicKey{1: root.Public().(ed25519.PublicKey)}, Distrusted: map[uint16]bool{}}
-	register(t, product, i.trust)
+	i.trust.Product = product
+	register(t, registration, i.trust)
 	return i
 }
 
-// UseBuildSetting makes licensekit.Open trust a real Manager's build setting
-// (Settings → Signing) for product until the test ends, as if the test
-// binary had been built with it. Use it to test against a development
-// Manager.
+// UseBuildSetting makes licensekit.Open trust a development Manager's build
+// value until the test ends. Use an empty product with the value from the
+// product page to test apps that get their identity from the build.
 func UseBuildSetting(t testing.TB, product, setting string) {
 	t.Helper()
 	if !testing.Testing() {
@@ -103,6 +108,9 @@ func UseBuildSetting(t testing.TB, product, setting string) {
 	trust, err := protocol.ParseTrust(setting)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if product == "" && trust.Product == "" {
+		t.Fatal("use the build setting from the product page")
 	}
 	register(t, product, trust)
 }
@@ -137,7 +145,7 @@ func (i *Issuer) Open(t testing.TB, opts licensekit.Options) *licensekit.License
 	if opts.DeviceID == "" {
 		opts.DeviceID = "licensekittest-device"
 	}
-	l, err := licensekit.Open(i.Product, opts)
+	l, err := licensekit.Open(i.openProduct, opts)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,15 +9,16 @@ Use Go **1.27.4 or newer**. LicenseKit supports Linux, macOS and Windows and use
 Use a released version (see the [CHANGELOG](CHANGELOG.md)). From the consuming app's module:
 
 ```sh
-go get github.com/aqobadi/licensekit@v0.1.1
+go get github.com/aqobadi/licensekit@"$LICENSEKIT_VERSION"
 ```
 
-The repository is public, so no token or `GOPRIVATE` setting is needed.
+Set `LICENSEKIT_VERSION` to a release that supports product build values. The repository is public
+and needs no token or `GOPRIVATE` setting.
 
 ## 2. Set LICENSEKIT_BUILD (once, in your CI, not in code)
 
-The License-ZG Manager shows the value under **Settings → Signing → LICENSEKIT_BUILD**. It holds only
-public keys and the activation address, so it isn't secret. The app gets it **when it is built**:
+Copy **LICENSEKIT_BUILD** from the product page in the License-ZG Manager. It contains public keys,
+the activation address and the automatically assigned product identity. The app gets it **when it is built**:
 
 ```sh
 go build -ldflags "-X github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD" ./cmd/yourapp
@@ -66,7 +67,7 @@ Set two environment variables in your shell; plain `go run` and `go build` then 
 Go's own `GOFLAGS`:
 
 ```sh
-export LICENSEKIT_BUILD='r1:…,r2:…,url=https://activate.example.com'   # value from the Manager
+export LICENSEKIT_BUILD='r1:…,r2:…,url=https://activate.example.com,product=example-app'   # value from the Manager
 export GOFLAGS="-ldflags=-X=github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD"
 
 go run ./cmd/yourapp        # licensing is configured
@@ -75,7 +76,7 @@ go run ./cmd/yourapp        # licensing is configured
 On Windows PowerShell:
 
 ```powershell
-$env:LICENSEKIT_BUILD = 'r1:…,r2:…,url=https://activate.example.com'
+$env:LICENSEKIT_BUILD = 'r1:…,r2:…,url=https://activate.example.com,product=example-app'
 $env:GOFLAGS = "-ldflags=-X=github.com/aqobadi/licensekit.build=$env:LICENSEKIT_BUILD"
 ```
 
@@ -87,7 +88,7 @@ Notes:
 - Keep the two lines in a git-ignored `.env`/`.envrc` file or your shell profile, not in the repository.
   `go env -w GOFLAGS=…` also works, but applies to every Go project on the machine.
 - **Testing against a local Manager:** run it (`license-zg serve --local DIR`, or `make dev` in the
-  Manager's repository), create its signing identity, and copy *its* `LICENSEKIT_BUILD`
+  Manager's repository), create its signing identity and a product, and copy that product’s `LICENSEKIT_BUILD`
   (`url=http://127.0.0.1:47820`). Licenses from your production Manager don't work in such a build, and
   the other way round. That is intended.
 - **Automated tests** need none of this: `licensekittest` gives each test its own keys and server (§6).
@@ -108,10 +109,12 @@ at build time, it can only be changed by rebuilding or patching the binary.
 ## 3. Open the license once
 
 ```go
-lic, err := licensekit.Open("moro-ai", licensekit.Options{})
+lic, err := licensekit.Open("", licensekit.Options{})
 ```
 
-The first argument is the product's **slug**, shown on the product page in the Manager. Keep the returned `*licensekit.License` for the life of the process; it is safe across goroutines. Handle an `Open` error before using the license: use `errors.As` with `*licensekit.Error` and show its `Message`. A missing activation is not an error; it is `Status().State == licensekit.NotActivated`.
+An empty first argument uses the product in the build value. Keep the returned `*licensekit.License` for the life of the process; it is safe across goroutines. Handle an `Open` error before using the license: use `errors.As` with `*licensekit.Error` and show its `Message`. A missing activation is not an error; it is `Status().State == licensekit.NotActivated`.
+
+To upgrade an existing integration, update the SDK, copy the build value from the existing product's page, and change the first argument to an empty string. The product ID and saved activation carry over with the same product and installation state. Older SDKs use the legacy value in Signing settings and an explicit slug.
 
 The default storage is per OS user and product. For a server, a container or a shared installation, pass `Options.StateDir` on persistent storage that the service account can write. In a container or an environment without a stable OS identity, also supply a stable, unique `Options.DeviceID` (8–256 bytes), persisted with the state directory and different for each installation. For a local web app, the machine or container running the Go process is the licensed computer.
 
@@ -150,7 +153,7 @@ Show `*licensekit.Error.Message` on failure; it says, for example, "There's a ty
 
 ```go
 func TestLicensedExport(t *testing.T) {
-    iss := licensekittest.New(t, "moro-ai")
+    iss := licensekittest.New(t, "")
     lic := iss.Open(t, licensekit.Options{ServerURL: iss.Server(t)})
     key := iss.NewKey(licensekittest.Terms{Expires: time.Now().AddDate(1, 0, 0), Features: []string{"export"}})
     if err := online.Enter(context.Background(), lic, key); err != nil {
@@ -160,7 +163,7 @@ func TestLicensedExport(t *testing.T) {
 }
 ```
 
-`iss.Activate(t, lic, terms)` installs a license through a request file; `iss.RenewalCode(key, expires)` makes renewal codes. To test against a real development Manager, call `licensekittest.UseBuildSetting(t, "moro-ai", setting)`.
+`iss.Activate(t, lic, terms)` installs a license through a request file; `iss.RenewalCode(key, expires)` makes renewal codes. To test against a real development Manager, call `licensekittest.UseBuildSetting(t, "", setting)`.
 
 Before release, check on each target OS or container: activation online, a request-file activation, access after a restart, a renewal code, deactivation and activation on another computer, and the messages for an invalid key. See [SECURITY.md](SECURITY.md) for the limits of offline enforcement.
 

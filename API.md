@@ -15,8 +15,9 @@ Module `github.com/aqobadi/licensekit`, Go 1.27.4+, standard library only.
 ```go
 package licensekit
 
-// Open prepares licensing for the product slug (e.g. "moro-ai") and
-// re-verifies any saved license. It fails only for build, developer or
+// Open prepares licensing and re-verifies any saved license. Pass an empty
+// product to use the product from the build setting. An explicit slug must
+// match if the build setting includes one. It fails only for build, developer or
 // environment problems: NotConfigured, BadProduct, DeviceUnavailable, StorageFailed.
 func Open(product string, opts Options) (*License, error)
 
@@ -79,12 +80,12 @@ online (`Offline`, `KeyNotValid`, `KeyInUse`, `MovesExhausted`, `LicenseExpired`
 ## 4. licensekittest
 
 ```go
-iss := licensekittest.New(t, "moro-ai")            // trust a throwaway root for this product in this test
+iss := licensekittest.New(t, "")            // trust a throwaway root for this product in this test
 lic := iss.Open(t, licensekit.Options{ServerURL: iss.Server(t)})
 key := iss.NewKey(licensekittest.Terms{Expires: t1, Features: []string{"export"}})
 iss.Activate(t, lic, terms)                          // via a request file
 code, _ := iss.RenewalCode(key, t2)
-licensekittest.UseBuildSetting(t, "moro-ai", setting) // trust a real development Manager instead
+licensekittest.UseBuildSetting(t, "", setting) // trust a real development Manager instead
 ```
 
 It panics outside `go test`. Tests that use the same product must not run in parallel.

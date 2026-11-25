@@ -18,7 +18,7 @@ import (
 func main() {
 	addr := flag.String("addr", "127.0.0.1:47821", "listen address (keep it on loopback)")
 	flag.Parse()
-	lic, err := licensekit.Open("example-app", licensekit.Options{StateDir: os.Getenv("EXAMPLE_STATE_DIR"), DeviceID: os.Getenv("EXAMPLE_DEVICE_ID")})
+	lic, err := licensekit.Open("", licensekit.Options{StateDir: os.Getenv("EXAMPLE_STATE_DIR"), DeviceID: os.Getenv("EXAMPLE_DEVICE_ID")})
 	if err != nil {
 		log.Fatal(err)
 	}

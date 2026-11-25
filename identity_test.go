@@ -47,3 +47,33 @@ func TestOpenWithoutBuildTrust(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestProductFromBuild(t *testing.T) {
+	const roots = "r1:951a9e4c7e3defb28c5ee9033f60866b8ab55e7a7656917b626db610551e2ff5"
+	previous := build
+	t.Cleanup(func() { build = previous })
+	build = roots
+	opts := Options{DeviceID: "device-0001", StateDir: t.TempDir()}
+	legacy, err := Open("example-app", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var e *Error
+	if _, err := Open("", opts); !errors.As(err, &e) || e.Kind != NotConfigured {
+		t.Fatalf("missing build product: %v", err)
+	}
+	build = roots + ",product=example-app"
+	current, err := Open("", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.productID != legacy.productID || current.fp != legacy.fp || current.dir != legacy.dir {
+		t.Fatal("build product changed the installation identity")
+	}
+	if _, err := Open("example-app", opts); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open("other-app", opts); !errors.As(err, &e) || e.Kind != NotConfigured {
+		t.Fatalf("mismatched build product: %v", err)
+	}
+}

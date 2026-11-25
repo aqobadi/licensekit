@@ -1,6 +1,6 @@
 // Package licensekit checks License-ZG licenses inside an application.
 //
-// Call Open with the product's slug, then Status and Has to enforce the
+// Call Open with an empty product to use the build setting, then Status and Has to enforce the
 // license, and Apply for renewal codes and license files. Activation with a
 // license key goes online once through package licensekit/online (or the
 // ready-made page in licensekit/licenseui). This package makes no network
@@ -29,8 +29,8 @@ import (
 //
 //	-ldflags "-X github.com/aqobadi/licensekit.build=<value>"
 //
-// where the value is the build setting the License-ZG Manager shows under
-// Settings → Signing. It is unexported, so nothing at run time can change it.
+// where the value comes from the product's page in the License-ZG Manager.
+// It is unexported, so nothing at run time can change it.
 var build string
 
 // Options configures Open. The zero value is the recommended default.
@@ -114,22 +114,35 @@ type License struct {
 
 const tolerance = 48 * 3600
 
-// Open prepares licensing for the product with the given slug (as shown in
-// the License-ZG Manager, e.g. "moro-ai") and re-verifies any saved
-// license. It fails only for build, developer or environment problems.
+// Open prepares licensing and re-verifies any saved license. Pass an empty
+// product to use the product in the build setting. Existing integrations may
+// pass a slug, which must match the build setting if it specifies a product.
 func Open(product string, opts Options) (*License, error) {
 	return open(product, opts, time.Now)
 }
 
 func open(product string, opts Options, now func() time.Time) (*License, error) {
-	l := &License{product: product, now: now, source: protocol.SourceOS}
-	var err error
-	if l.productID, err = protocol.ProductID(product); err != nil {
+	if product != "" && !protocol.ValidSlug(product) {
+		_, err := protocol.ProductID(product)
 		return nil, &Error{Kind: BadProduct, Message: messages[BadProduct], err: err}
 	}
-	if l.trust, err = buildTrust(product); err != nil {
+	trust, err := buildTrust(product)
+	if err != nil {
 		return nil, &Error{Kind: NotConfigured, Message: messages[NotConfigured], err: err}
 	}
+	if product == "" {
+		product = trust.Product
+		if product == "" {
+			return nil, &Error{Kind: NotConfigured, Message: messages[NotConfigured], err: errors.New("use LICENSEKIT_BUILD from the product page")}
+		}
+	} else if trust.Product != "" && trust.Product != product {
+		return nil, &Error{Kind: NotConfigured, Message: messages[NotConfigured], err: errors.New("LICENSEKIT_BUILD is for a different product")}
+	}
+	pid, err := protocol.ProductID(product)
+	if err != nil {
+		return nil, &Error{Kind: BadProduct, Message: messages[BadProduct], err: err}
+	}
+	l := &License{product: product, productID: pid, trust: trust, now: now, source: protocol.SourceOS}
 	if l.server, err = serverURL(opts.ServerURL, l.trust.ServerURL); err != nil {
 		return nil, &Error{Kind: NotConfigured, Message: messages[NotConfigured], err: err}
 	}

@@ -17,9 +17,9 @@ To delegate the implementation, copy the [coding-agent prompt](INTEGRATION-PROMP
 
 ## Quick start
 
-1. `go get github.com/aqobadi/licensekit@v0.1.1` (pin a release; the repository is public).
+1. Install a pinned release that supports product build values.
    Versions and their changes: [CHANGELOG](CHANGELOG.md).
-2. Open the product by its slug (shown on the product page in the Manager) and mount the ready-made License page:
+2. Open licensing for the product identified by the build and mount the ready-made License page:
 
 ```go
 import (
@@ -27,7 +27,7 @@ import (
     "github.com/aqobadi/licensekit/licenseui"
 )
 
-lic, err := licensekit.Open("moro-ai", licensekit.Options{})
+lic, err := licensekit.Open("", licensekit.Options{})
 if err != nil { /* *licensekit.Error: show err.Message; Kind tells you why */ }
 
 mux.Handle("/settings/license/", http.StripPrefix("/settings/license",
@@ -37,12 +37,12 @@ if lic.Status().State != licensekit.Active { /* pause licensed work */ }
 if lic.Has("export") { /* a separately sold feature */ }
 ```
 
-3. Set `LICENSEKIT_BUILD` once in your CI (value from the Manager: **Settings → Signing**), never in code.
+3. Set `LICENSEKIT_BUILD` once in your CI (value from the product page in the Manager), never in code.
    GitHub Actions, Docker and Coolify examples: [INTEGRATION.md §2](INTEGRATION.md#2-set-licensekit_build-once-in-your-ci-not-in-code).
    To run the app on your computer, export it plus `GOFLAGS` and use plain `go run`:
 
    ```sh
-   export LICENSEKIT_BUILD='r1:…,url=…'
+   export LICENSEKIT_BUILD='r1:…,url=…,product=example-app'
    export GOFLAGS="-ldflags=-X=github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD"
    ```
 
@@ -57,7 +57,7 @@ with `NotConfigured` ("This build of the app has no licensing configuration"), s
 
 | Call | Use |
 |---|---|
-| `licensekit.Open(slug, opts)` | Once at startup; keep the `*License` (safe for concurrent use) |
+| `licensekit.Open("", opts)` | Once at startup; keep the `*License` (safe for concurrent use) |
 | `lic.Status()` | `State`, `Expires`, `DaysLeft`, `Perpetual`, `Entitlements`, `CanDeactivate`, `Message` |
 | `lic.Has("key")` | A feature is licensed and the license is `Active` |
 | `lic.Apply(text)` | A renewal code or `.license` file contents (offline) |
@@ -65,7 +65,7 @@ with `NotConfigured` ("This build of the app has no licensing configuration"), s
 | `online.Enter(ctx, lic, text)` | What the customer typed: a license key activates online, anything else is `Apply` |
 | `online.Deactivate(ctx, lic)` | Give the license back so the key can set up another computer |
 | `licenseui.Handler(lic, opts)` | All of the above as a page (no JavaScript; works under a strict CSP) |
-| `licensekittest.New(t, slug)` | A throwaway issuer and activation server for your tests |
+| `licensekittest.New(t, "")` | A throwaway issuer and activation server for your tests |
 
 Full contract: [API.md](API.md).
 

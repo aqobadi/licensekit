@@ -6,8 +6,7 @@ Copy the block into your coding agent in the consuming app's repository. Fill in
 Integrate License-ZG LicenseKit into this Go application and verify it through the app's normal entry points.
 
 Project details
-- Product slug (from License-ZG Manager → Products, e.g. moro-ai):
-- LicenseKit version (a release such as v0.1.1):
+- LicenseKit version (a release with product build values):
 - Features to protect and their keys (leave empty if the license grants the whole app):
 - Target environments (native OS, local web app, container, or server):
 - Product policy for access to existing data when licensed work is unavailable:
@@ -20,7 +19,7 @@ background jobs and tests before choosing integration points.
 
 The app needs only the SDK. There is no bundle file to embed, no key to put in code, and no CLI.
 1. go get github.com/aqobadi/licensekit@<version> (Go 1.27.4 or later).
-2. Call licensekit.Open("<slug>", licensekit.Options{...}) once in the process that does the
+2. Call licensekit.Open("", licensekit.Options{...}) once in the process that does the
    licensed work, and reuse the returned *License. Handle Open errors with errors.As on
    *licensekit.Error and show its Message. For servers and containers, set Options.StateDir on
    persistent storage and a stable, unique Options.DeviceID per installation, persisted with it.
@@ -28,7 +27,7 @@ The app needs only the SDK. There is no bundle file to embed, no key to put in c
 3. Wire the build setting into every build, never into code: add
    -X github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD to the existing -ldflags
    in the Makefile, scripts, CI and Dockerfile (as a build argument). LICENSEKIT_BUILD comes from
-   the Manager (Settings → Signing → LICENSEKIT_BUILD); the owner supplies it in the build
+   the product page in the Manager; the owner supplies it in the build
    environment. Do not read trust from runtime environment variables or files.
    For local runs, make plain `go run`/`go build` work when the developer exports LICENSEKIT_BUILD
    and GOFLAGS="-ldflags=-X=github.com/aqobadi/licensekit.build=$LICENSEKIT_BUILD" (INTEGRATION.md §2,
@@ -46,7 +45,7 @@ The app needs only the SDK. There is no bundle file to embed, no key to put in c
    including background jobs and service endpoints; lic.Has("<key>") for separately sold features.
    Keep the License page, recovery and the user's own data reachable when work is blocked, per the
    product policy. Show a renewal reminder when !Perpetual && DaysLeft <= 30 (the License page does).
-6. Test with licensekittest (no real keys, no network): licensekittest.New(t, "<slug>") with
+6. Test with licensekittest (no real keys, no network): licensekittest.New(t, "") with
    iss.Server(t) for online activation, iss.Activate for file activation, iss.RenewalCode for
    renewals. Cover: not activated, online activation, request-file activation, restart, renewal,
    expiry, deactivation and activation on another computer, invalid and mistyped keys, enabled and

@@ -333,12 +333,12 @@ func TestRequestAndRelease(t *testing.T) {
 }
 
 func TestTrustParsing(t *testing.T) {
-	good := vecTrust + ",r2:" + strings.Repeat("ab", 32) + ",-s3,-s1,url=https://activate.example.com/"
+	good := vecTrust + ",r2:" + strings.Repeat("ab", 32) + ",-s3,-s1,url=https://activate.example.com/,product=example-app"
 	tr, err := ParseTrust(" " + strings.ReplaceAll(good, ",", " , ") + " ")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tr.ServerURL != "https://activate.example.com" || !tr.Distrusted[3] || len(tr.Roots) != 2 {
+	if tr.ServerURL != "https://activate.example.com" || tr.Product != "example-app" || !tr.Distrusted[3] || len(tr.Roots) != 2 {
 		t.Fatalf("%+v", tr)
 	}
 	if again, _ := ParseTrust(tr.String()); again.String() != tr.String() {
@@ -346,6 +346,7 @@ func TestTrustParsing(t *testing.T) {
 	}
 	for _, bad := range []string{"", "-s1", "r1:abcd", "r0:" + strings.Repeat("ab", 32), "r1:" + strings.Repeat("AB", 32),
 		vecTrust + "," + vecTrust, "x1", vecTrust + ",url=http://example.com", vecTrust + ",-s0",
+		vecTrust + ",product=", vecTrust + ",product=Example App", vecTrust + ",product=example-app,product=other-app",
 		vecTrust + ",r2:" + strings.Repeat("ab", 32) + ",r3:" + strings.Repeat("ac", 32) + ",r4:" + strings.Repeat("ad", 32) + ",r5:" + strings.Repeat("ae", 32)} {
 		if _, err := ParseTrust(bad); err == nil {
 			t.Errorf("accepted %q", bad)

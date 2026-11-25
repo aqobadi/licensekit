@@ -34,11 +34,14 @@ A comma-separated list, whitespace around items ignored:
 | `r<N>:<64 lowercase hex>` | Root `N` (1–255) with this Ed25519 public key. 1 to 4 roots, numbers unique. |
 | `-s<N>` | Signing key `N` (1–65535) is distrusted. |
 | `url=<address>` | Default activation API address: `https://host[:port][/path]`, or `http://` only for `localhost`, `127.0.0.1` or `[::1]`. No query, fragment, user info, spaces or commas. |
+| `product=<slug>` | Optional product slug (§3), at most once. The app uses it to derive the expected product ID. |
 
 Any other item is an error. The canonical form lists roots by number, then distrust entries by
-number, then `url=`. Example: `r1:951a…2ff5,r2:…,-s3,url=https://activate.example.com`.
+number, then `url=` and `product=` when present.
 
 Go apps receive it with `-ldflags "-X github.com/aqobadi/licensekit.build=<setting>"`.
+With a product in the build setting, apps can pass an empty slug to `Open`. An explicit slug
+must agree with the build setting. App builds with older settings still require an explicit slug.
 The activation address may be overridden at run time (option or `LICENSEKIT_SERVER_URL`); that is
 safe because every result is verified against the roots.
 
@@ -300,6 +303,7 @@ signing key seed  SHA-256("zurvan test signing key 1")     key number 1, certifi
 device key seed   SHA-256("zurvan test device")
 build setting     r1:951a9e4c7e3defb28c5ee9033f60866b8ab55e7a7656917b626db610551e2ff5
 product slug      example-app      → product_id b0c28bfd19208068fca6a422351a8327
+product build     r1:951a9e4c7e3defb28c5ee9033f60866b8ab55e7a7656917b626db610551e2ff5,product=example-app
 machine id        0123456789abcdef0123456789abcdef (source 0x01)
 fingerprint       908ec2f8d6b1c098cd88f3b3b9b4ae
 license key       secret = SHA-256("zurvan test license key")[0..12)

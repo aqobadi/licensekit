@@ -17,11 +17,12 @@ type Trust struct {
 	Roots      map[uint8]ed25519.PublicKey
 	Distrusted map[uint16]bool // signing key numbers
 	ServerURL  string          // default activation API address, may be empty
+	Product    string          // product slug compiled into the app, may be empty for older builds
 }
 
 // ParseTrust parses the build setting, a comma-separated list of
 // "r<N>:<64 hex>" roots, "-s<N>" distrusted signing keys and an optional
-// "url=<https URL>" (spec §2).
+// "url=<https URL>" and "product=<slug>" (spec §2).
 func ParseTrust(s string) (*Trust, error) {
 	t := &Trust{Roots: map[uint8]ed25519.PublicKey{}, Distrusted: map[uint16]bool{}}
 	for _, item := range strings.Split(strings.TrimSpace(s), ",") {
@@ -29,6 +30,12 @@ func ParseTrust(s string) (*Trust, error) {
 		switch {
 		case item == "":
 			continue
+		case strings.HasPrefix(item, "product="):
+			slug := strings.TrimPrefix(item, "product=")
+			if t.Product != "" || !ValidSlug(slug) {
+				return nil, fmt.Errorf("trust: invalid or repeated product %q", slug)
+			}
+			t.Product = slug
 		case strings.HasPrefix(item, "url="):
 			u := item[len("url="):]
 			if err := CheckServerURL(u); err != nil {
@@ -86,6 +93,9 @@ func (t *Trust) String() string {
 	}
 	if t.ServerURL != "" {
 		items = append(items, "url="+t.ServerURL)
+	}
+	if t.Product != "" {
+		items = append(items, "product="+t.Product)
 	}
 	return strings.Join(items, ",")
 }
