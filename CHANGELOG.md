@@ -5,6 +5,8 @@ LicenseKit follows semantic versioning; install a release with
 
 ## Unreleased
 
+## v0.1.3 — 2026-11-26
+
 ## v0.1.2 — 2026-11-25
 
 - `Open("", opts)` gets its product identity from `LICENSEKIT_BUILD`. Explicit slugs and legacy build values remain supported.
